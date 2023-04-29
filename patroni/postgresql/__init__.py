@@ -619,6 +619,7 @@ class Postgresql(object):
         :param on_safepoint: This callback is called when no user backends are running.
         :param on_shutdown: is called when pg_controldata starts reporting `Database cluster state: shut down`
         """
+        logger.info("Debug: Running stop, checkpoint (%s) mode (%s)", checkpoint, mode)
         if checkpoint is None:
             checkpoint = False if mode == 'immediate' else True
 
@@ -636,30 +637,44 @@ class Postgresql(object):
         return success
 
     def _do_stop(self, mode, block_callbacks, checkpoint, on_safepoint, on_shutdown, stop_timeout):
+        logger.info("Debug: Running _do_stop, checkpoint (%s) mode(%s)", checkpoint, mode)
         postmaster = self.is_running()
+        logger.info("Debug: checking postmaster")
         if not postmaster:
+            logger.info("Debug: postmaster not found")
             if on_safepoint:
+                logger.info("Debug: Running on_safepoint")
                 on_safepoint()
             return True, False
 
         if checkpoint and not self.is_starting():
+            logger.info("Debug checkpoint and not self.is_starting(), running checkpoint")
             self.checkpoint(timeout=stop_timeout)
 
         if not block_callbacks:
+            logger.info("Debug: Not block_callbacks, setting state stopping")
             self.set_state('stopping')
 
         # Send signal to postmaster to stop
+        logger.info("Debug: Sending signal stop")
         success = postmaster.signal_stop(mode, self.pgcommand('pg_ctl'))
+        logger.info("Debug: signal_stop :eturns None if signaled, True if process is already gone, False if error")
+        logger.info("Debug: postmaster stop success (%s)", success)
         if success is not None:
             if success and on_safepoint:
+                logger.info("Debug: postmaster stop success, run on_safepoint")
                 on_safepoint()
+            logger.info("Debug: _do_stop returning success (%s), True")
             return success, True
 
         # We can skip safepoint detection if we don't have a callback
         if on_safepoint:
+            logger.info("Debug: _do_stop on_safepoint check, wait for connections to close")
             # Wait for our connection to terminate so we can be sure that no new connections are being initiated
             self._wait_for_connection_close(postmaster)
+            logger.info("Debug: _do_stop postmaster wait_for_user_backends_to_close")
             postmaster.wait_for_user_backends_to_close()
+            logger.info("Debug: _do_stop Run on_safepoint")
             on_safepoint()
 
         if on_shutdown and mode in ('fast', 'smart'):
@@ -668,17 +683,22 @@ class Postgresql(object):
             while postmaster.is_running():
                 data = self.controldata()
                 if data.get('Database cluster state', '') == 'shut down':
+                    logger.info("Debug: _do_stop database cluster state shutdown, run on_shutdown with latest checkpoint location")
                     on_shutdown(int(self.latest_checkpoint_location()))
                     break
                 elif data.get('Database cluster state', '').startswith('shut down'):  # shut down in recovery
+                    logger.info("Debug: _do_stop postmaster running shutdown in recovery")
                     break
                 elif stop_timeout and i >= stop_timeout:
+                    logger.info("Debug: _do_stop stop_timeout reached, setting stop_timeout to 0 and break loop")
                     stop_timeout = 0
                     break
+                logger.info("Debug: _do_stop sleep (%s)", STOP_POLLING_INTERVAL)
                 time.sleep(STOP_POLLING_INTERVAL)
                 i += STOP_POLLING_INTERVAL
 
         try:
+            logger.info("Debug: _do_stop postmaster wait timeout (%s)", stop_timeout)
             postmaster.wait(timeout=stop_timeout)
         except TimeoutExpired:
             logger.warning("Timeout during postmaster stop, aborting Postgres.")
@@ -688,12 +708,16 @@ class Postgresql(object):
         return True, True
 
     def terminate_postmaster(self, postmaster, mode, stop_timeout):
+        logger.info("Debug: terminate_postmaster, mode (%s)", mode)
         if mode in ['fast', 'smart']:
             try:
+                logger.info("Debug terminate_postmaster try immediate")
                 success = postmaster.signal_stop('immediate', self.pgcommand('pg_ctl'))
                 if success:
                     return True
+                logger.info("Debug: terminate_postmaster immediate wait for timeout")
                 postmaster.wait(timeout=stop_timeout)
+                logger.info("Debug: terminate_postmaster immediate return True")
                 return True
             except TimeoutExpired:
                 pass

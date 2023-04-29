@@ -62,6 +62,10 @@ class Rewind(object):
         if self.can_rewind_or_reinitialize_allowed and self._state != REWIND_STATUS.NEED:
             self._state = REWIND_STATUS.CHECK
 
+    @property
+    def state(self):
+        return self._state
+
     @staticmethod
     def check_leader_is_not_in_recovery(conn_kwargs):
         try:

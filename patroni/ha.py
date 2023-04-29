@@ -849,6 +849,7 @@ class Ha(object):
         logger.info('Demoting self (%s)', mode)
 
         self._rewind.trigger_check_diverged_lsn()
+        logger.info('Debug: Rewind state (%s)', self._rewind.state)
 
         status = {'released': False}
 
@@ -857,28 +858,37 @@ class Ha(object):
             # It could happen if Postgres is still archiving the backlog of WAL files.
             # If we know that there are replicas that received the shutdown checkpoint
             # location, we can remove the leader key and allow them to start leader race.
+            logger.info("Debug: on_shutdown checking is_failover_possible lsn (%s)", checkpoint_location)
             if self.is_failover_possible(self.cluster.members, cluster_lsn=checkpoint_location):
+                logger.info("Debug: on_shutdown failover possible lsn (%s)", checkpoint_location)
                 self.state_handler.set_role('demoted')
                 with self._async_executor:
                     self.release_leader_key_voluntarily(checkpoint_location)
                     status['released'] = True
 
+        logger.info("Debug: Calling state_handler stop")
         self.state_handler.stop(mode_control['stop'], checkpoint=mode_control['checkpoint'],
                                 on_safepoint=self.watchdog.disable if self.watchdog.is_running else None,
                                 on_shutdown=on_shutdown if mode_control['release'] else None,
                                 stop_timeout=self.master_stop_timeout())
+        logger.info("Debug: Setting role demoted after running stop")
         self.state_handler.set_role('demoted')
         self.set_is_leader(False)
 
+        logger.info("Debug: Checking mode control")
         if mode_control['release']:
+            logger.info("Debug: In mode_control release")
             if not status['released']:
+                logger.info("Debug: Status not released")
                 checkpoint_location = self.state_handler.latest_checkpoint_location() if mode == 'graceful' else None
                 with self._async_executor:
                     self.release_leader_key_voluntarily(checkpoint_location)
             time.sleep(2)  # Give a time to somebody to take the leader lock
         if mode_control['offline']:
+            logger.info("Debug In mode_control offline")
             node_to_follow, leader = None, None
         else:
+            logger.info("Debug: mode_control fallback ")
             try:
                 cluster = self.dcs.get_cluster()
                 node_to_follow, leader = self._get_node_to_follow(cluster), cluster.leader
