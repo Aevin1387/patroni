@@ -418,7 +418,9 @@ class Postgresql(object):
         lsn = checkpoint_lsn = data.get('Latest checkpoint location')
         if data.get('Database cluster state') == 'shut down' and lsn and timeline:
             try:
+                logger.info("Debug: pre-parse LSN (%s)", checkpoint_lsn)
                 checkpoint_lsn = parse_lsn(checkpoint_lsn)
+                logger.info("Debug: post-parse LSN (%s)", checkpoint_lsn)
                 rm_name, lsn, prev, desc = self.parse_wal_record(timeline, lsn)
                 desc = desc.strip().lower()
                 if rm_name == 'XLOG' and parse_lsn(lsn) == checkpoint_lsn and prev and\
