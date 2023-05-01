@@ -661,12 +661,14 @@ class Ha(object):
         :param wal_position: Current wal position.
         :returns True when node is lagging
         """
+        logger.info("Debug: Checking if lagging, cluster last_lsn (%s), wal_position (%s)", self.cluster.last_lsn, wal_position)
         lag = (self.cluster.last_lsn or 0) - wal_position
         return lag > self.patroni.config.get('maximum_lag_on_failover', 0)
 
     def _is_healthiest_node(self, members, check_replication_lag=True):
         """This method tries to determine whether I am healthy enough to became a new leader candidate or not."""
 
+        logger.info("Debug: Checking if healthiest node")
         my_wal_position = self.state_handler.last_operation()
         if check_replication_lag and self.is_lagging(my_wal_position):
             logger.info('My wal position exceeds maximum replication lag')
@@ -723,6 +725,7 @@ class Ha(object):
         return ret
 
     def manual_failover_process_no_leader(self):
+        logger.info("Debug: Running manual_failover_process_no_leader")
         failover = self.cluster.failover
         if failover.candidate:  # manual failover to specific member
             if failover.candidate == self.state_handler.name:  # manual failover to me
@@ -770,6 +773,7 @@ class Ha(object):
         return self._is_healthiest_node(members, check_replication_lag=False)
 
     def is_healthiest_node(self):
+        logger.info("Debug: Running is_healthiest_node")
         if time.time() - self._released_leader_key_timestamp < self.dcs.ttl:
             logger.info('backoff: skip leader race after pre_promote script failure and releasing the lock voluntarily')
             return False
