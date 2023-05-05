@@ -855,7 +855,9 @@ class Postgresql(object):
                         logger.info("Debug: controldata pg_ctl check status (%s)", data)
                     except subprocess.CalledProcessError as err:
                         logger.info("Debug: controldata pg_ctl check status, err (%s) output (%s)", err.returncode, err.output)
-                return output
+                        if err.returncode == 3:
+                            return output
+                return {}
         return {}
 
     def waldump(self, timeline, lsn, limit):
