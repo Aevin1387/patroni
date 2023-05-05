@@ -847,7 +847,8 @@ class Postgresql(object):
                     # pg_controldata output depends on major version. Some of parameters are prefixed by 'Current '
                     output = {k.replace('Current ', '', 1): v.strip() for k, v in map(lambda e: e.split(':', 1), data)}
                     if output.get('Database cluster state', '') == 'shut down':
-                        data = self.pg_ctl('status')
+                        pg_ctl = [self.pgcommand('pg_ctl'), 'status']
+                        data = subprocess.check_output(pg_ctl, env=env)
                         logger.info("Debug: controldata pg_ctl check status (%s)", data)
                     return output
             except subprocess.CalledProcessError:
