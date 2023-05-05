@@ -416,7 +416,7 @@ class Postgresql(object):
         data = self.controldata()
         timeline = data.get("Latest checkpoint's TimeLineID")
         lsn = checkpoint_lsn = data.get('Latest checkpoint location')
-        if data.get('Database cluster state') == 'shut down' and self.ctl_shutdown() and lsn and timeline:
+        if data.get('Database cluster state') == 'shut down' and lsn and timeline:
             try:
                 logger.info("Debug: pre-parse LSN (%s)", checkpoint_lsn)
                 checkpoint_lsn = parse_lsn(checkpoint_lsn)
@@ -684,7 +684,7 @@ class Postgresql(object):
             # Wait for pg_controldata `Database cluster state:` to change to "shut down"
             while postmaster.is_running():
                 data = self.controldata()
-                if data.get('Database cluster state', '') == 'shut down':
+                if data.get('Database cluster state', '') == 'shut down' and self.ctl_shutdown():
                     logger.info("Debug: _do_stop database cluster state shutdown, run on_shutdown with latest checkpoint location")
                     on_shutdown(int(self.latest_checkpoint_location()))
                     break
