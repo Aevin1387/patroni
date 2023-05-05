@@ -688,7 +688,7 @@ class Postgresql(object):
                     logger.info("Debug: _do_stop database cluster state shutdown, run on_shutdown with latest checkpoint location")
                     on_shutdown(int(self.latest_checkpoint_location()))
                     break
-                elif data.get('Database cluster state', '').startswith('shut down'):  # shut down in recovery
+                elif data.get('Database cluster state', '').startswith('shut down') and data.get('Database cluster state', '') != 'shut down':  # shut down in recovery
                     logger.info("Debug: _do_stop postmaster running shutdown in recovery")
                     break
                 elif stop_timeout and i >= stop_timeout:
