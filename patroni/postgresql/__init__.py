@@ -841,18 +841,21 @@ class Postgresql(object):
                 env = os.environ.copy()
                 env.update(LANG='C', LC_ALL='C')
                 data = subprocess.check_output([self.pgcommand('pg_controldata'), self._data_dir], env=env)
-                if data:
-                    logger.info("Debug: controldata return (%s)", data)
-                    data = filter(lambda e: ':' in e, data.decode('utf-8').splitlines())
-                    # pg_controldata output depends on major version. Some of parameters are prefixed by 'Current '
-                    output = {k.replace('Current ', '', 1): v.strip() for k, v in map(lambda e: e.split(':', 1), data)}
-                    if output.get('Database cluster state', '') == 'shut down':
+            except subprocess.CalledProcessError:
+                logger.exception("Error when calling pg_controldata")
+            if data:
+                logger.info("Debug: controldata return (%s)", data)
+                data = filter(lambda e: ':' in e, data.decode('utf-8').splitlines())
+                # pg_controldata output depends on major version. Some of parameters are prefixed by 'Current '
+                output = {k.replace('Current ', '', 1): v.strip() for k, v in map(lambda e: e.split(':', 1), data)}
+                if output.get('Database cluster state', '') == 'shut down':
+                    try:
                         pg_ctl = [self.pgcommand('pg_ctl'), 'status']
                         data = subprocess.check_output(pg_ctl, env=env)
                         logger.info("Debug: controldata pg_ctl check status (%s)", data)
-                    return output
-            except subprocess.CalledProcessError:
-                logger.exception("Error when calling pg_controldata")
+                    except subprocess.CalledProcessError as err:
+                        logger.info("Debug: controldata pg_ctl check status, err (%s) output (%s)", err.returncode, err.output)
+                return output
         return {}
 
     def waldump(self, timeline, lsn, limit):
