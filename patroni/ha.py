@@ -832,12 +832,14 @@ class Ha(object):
         :param wal_position: Current wal position.
         :returns True when node is lagging
         """
+        logger.info("Debug: Checking if lagging, cluster last_lsn (%s), wal_position (%s)", self.cluster.last_lsn, wal_position)
         lag = (self.cluster.last_lsn or 0) - wal_position
         return lag > self.patroni.config.get('maximum_lag_on_failover', 0)
 
     def _is_healthiest_node(self, members, check_replication_lag=True):
         """This method tries to determine whether I am healthy enough to became a new leader candidate or not."""
 
+        logger.info("Debug: Checking if healthiest node")
         my_wal_position = self.state_handler.last_operation()
         if check_replication_lag and self.is_lagging(my_wal_position):
             logger.info('My wal position exceeds maximum replication lag')
@@ -894,6 +896,7 @@ class Ha(object):
         return ret
 
     def manual_failover_process_no_leader(self):
+        logger.info("Debug: Running manual_failover_process_no_leader")
         failover = self.cluster.failover
         if failover.candidate:  # manual failover to specific member
             if failover.candidate == self.state_handler.name:  # manual failover to me
@@ -946,6 +949,7 @@ class Ha(object):
         return self._is_healthiest_node(members, check_replication_lag=False)
 
     def is_healthiest_node(self):
+        logger.info("Debug: Running is_healthiest_node")
         if time.time() - self._released_leader_key_timestamp < self.dcs.ttl:
             logger.info('backoff: skip leader race after pre_promote script failure and releasing the lock voluntarily')
             return False
@@ -1036,6 +1040,7 @@ class Ha(object):
         logger.info('Demoting self (%s)', mode)
 
         self._rewind.trigger_check_diverged_lsn()
+        logger.info('Debug: Rewind state (%s)', self._rewind.state)
 
         status = {'released': False}
 
@@ -1044,7 +1049,9 @@ class Ha(object):
             # It could happen if Postgres is still archiving the backlog of WAL files.
             # If we know that there are replicas that received the shutdown checkpoint
             # location, we can remove the leader key and allow them to start leader race.
+            logger.info("Debug: on_shutdown checking is_failover_possible lsn (%s)", checkpoint_location)
             if self.is_failover_possible(self.cluster.members, cluster_lsn=checkpoint_location):
+                logger.info("Debug: on_shutdown failover possible lsn (%s)", checkpoint_location)
                 self.state_handler.set_role('demoted')
                 with self._async_executor:
                     self.release_leader_key_voluntarily(checkpoint_location)
@@ -1056,23 +1063,30 @@ class Ha(object):
             else:
                 self.notify_citus_coordinator('before_demote')
 
+        logger.info("Debug: Calling state_handler stop")
         self.state_handler.stop(mode_control['stop'], checkpoint=mode_control['checkpoint'],
                                 on_safepoint=self.watchdog.disable if self.watchdog.is_running else None,
                                 on_shutdown=on_shutdown if mode_control['release'] else None,
                                 before_shutdown=before_shutdown if mode == 'graceful' else None,
                                 stop_timeout=self.primary_stop_timeout())
+        logger.info("Debug: Setting role demoted after running stop")
         self.state_handler.set_role('demoted')
         self.set_is_leader(False)
 
+        logger.info("Debug: Checking mode control")
         if mode_control['release']:
+            logger.info("Debug: In mode_control release")
             if not status['released']:
+                logger.info("Debug: Status not released")
                 checkpoint_location = self.state_handler.latest_checkpoint_location() if mode == 'graceful' else None
                 with self._async_executor:
                     self.release_leader_key_voluntarily(checkpoint_location)
             time.sleep(2)  # Give a time to somebody to take the leader lock
         if mode_control['offline']:
+            logger.info("Debug: In mode_control offline")
             node_to_follow, leader = None, None
         else:
+            logger.info("Debug: mode_control fallback ")
             try:
                 cluster = self.dcs.get_cluster()
                 node_to_follow, leader = self._get_node_to_follow(cluster), cluster.leader
