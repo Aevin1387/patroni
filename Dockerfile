@@ -24,9 +24,8 @@ RUN set -ex \
     && apt-cache depends patroni | sed -n -e 's/.*Depends: \(python3-.\+\)$/\1/p' \
             | grep -Ev '^python3-(sphinx|etcd|consul|kazoo|kubernetes)' \
             | xargs apt-get install -y vim curl less jq locales haproxy sudo \
-                            python3-etcd python3-kazoo python3-pip busybox \
-                            net-tools iputils-ping --fix-missing \
-    && pip3 install dumb-init \
+                            python3-etcd python3-kazoo python3-pip dumb-init busybox \
+                            net-tools iputils-ping zookeeper --fix-missing \
 \
     # Cleanup all locales but en_US.UTF-8
     && find /usr/share/i18n/charmaps/ -type f ! -name UTF-8.gz -delete \
@@ -66,44 +65,7 @@ RUN set -ex \
         # Download confd
         curl -sL "https://github.com/kelseyhightower/confd/releases/download/v$CONFDVERSION/confd-$CONFDVERSION-linux-$(dpkg --print-architecture)" \
             > /usr/local/bin/confd && chmod +x /usr/local/bin/confd; \
-    fi \
-\
-    # Clean up all useless packages and some files
-    && apt-get purge -y --allow-remove-essential python3-pip gzip bzip2 util-linux e2fsprogs \
-                libmagic1 bsdmainutils login ncurses-bin libmagic-mgc e2fslibs bsdutils \
-                exim4-config gnupg-agent dirmngr libpython2.7-stdlib libpython2.7-minimal \
-                git make \
-    && apt-get autoremove -y \
-    && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/* \
-        /root/.cache \
-        /var/cache/debconf/* \
-        /etc/rc?.d \
-        /etc/systemd \
-        /docker-entrypoint* \
-        /sbin/pam* \
-        /sbin/swap* \
-        /sbin/unix* \
-        /usr/local/bin/gosu \
-        /usr/sbin/[acgipr]* \
-        /usr/sbin/*user* \
-        /usr/share/doc* \
-        /usr/share/man \
-        /usr/share/info \
-        /usr/share/i18n/locales/translit_hangul \
-        /usr/share/locale/?? \
-        /usr/share/locale/??_?? \
-        /usr/share/postgresql/*/man \
-        /usr/share/postgresql-common/pg_wrapper \
-        /usr/share/vim/vim80/doc \
-        /usr/share/vim/vim80/lang \
-        /usr/share/vim/vim80/tutor \
-#        /var/lib/dpkg/info/* \
-    && find /usr/bin -xtype l -delete \
-    && find /var/log -type f -exec truncate --size 0 {} \; \
-    && find /usr/lib/python3/dist-packages -name '*test*' | xargs rm -fr \
-    && find /lib/$(uname -m)-linux-gnu/security -type f ! -name pam_env.so ! -name pam_permit.so ! -name pam_unix.so -delete
-
+    fi 
 # perform compression if it is necessary
 ARG COMPRESS
 RUN if [ "$COMPRESS" = "true" ]; then \
@@ -149,6 +111,7 @@ COPY patroni /patroni/
 COPY extras/confd/conf.d/haproxy.toml /etc/confd/conf.d/
 COPY extras/confd/templates/haproxy.tmpl /etc/confd/templates/
 COPY patroni*.py docker/entrypoint.sh /
+COPY docker/scripts/* /scripts/
 COPY postgres?.yml $PGHOME/
 
 WORKDIR $PGHOME
@@ -166,7 +129,8 @@ RUN sed -i 's/env python/&3/' /patroni*.py \
     && sed -i 's/^\(.*\) \(.*\) md5/\1 all md5/' postgres?.yml \
     && if [ "$COMPRESS" = "true" ]; then chmod u+s /usr/bin/sudo; fi \
     && chmod +s /bin/ping \
-    && chown -R postgres:postgres "$PGHOME" /run /etc/haproxy
+    && chown -R postgres:postgres "$PGHOME" /run /etc/haproxy \
+    && chmod +x /scripts/post_init.sh /scripts/database_init.py
 
 USER postgres
 

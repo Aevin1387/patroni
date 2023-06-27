@@ -62,27 +62,68 @@ bootstrap:
       #  - hostssl all all 0.0.0.0/0 md5
 #      use_slots: true
       parameters:
-#        wal_level: hot_standby
-#        hot_standby: "on"
-#        max_connections: 100
-#        max_worker_processes: 8
-#        wal_keep_segments: 8
-#        max_wal_senders: 10
-#        max_replication_slots: 10
-#        max_prepared_transactions: 0
-#        max_locks_per_transaction: 64
-#        wal_log_hints: "on"
-#        track_commit_timestamp: "off"
-#        archive_mode: "on"
-#        archive_timeout: 1800s
-#        archive_command: mkdir -p ../wal_archive && test ! -f ../wal_archive/%f && cp %p ../wal_archive/%f
-#      recovery_conf:
-#        restore_command: cp ../wal_archive/%f %p
+        wal_level: hot_standby
+        hot_standby: 'on'
+        max_connections: '443'
+        max_replication_slots: '999'
+        max_wal_senders: '999'
+        max_worker_processes: '8'
+        wal_level: logical
+        archive_mode: "on"
+        archive_timeout: 1800s
+        archive_command: mkdir -p ../wal_archive && test ! -f ../wal_archive/%f && cp %p ../wal_archive/%f && sleep 1
+        autovacuum: 'on'
+        autovacuum_analyze_scale_factor: '0.01'
+        autovacuum_max_workers: '5'
+        autovacuum_vacuum_scale_factor: '0.05'
+        default_statistics_target: '500'
+        effective_io_concurrency: '100'
+        fsync: 'on'
+        hot_standby_feedback: 'on'
+        idle_in_transaction_session_timeout: 15min
+        idle_session_timeout: 24h
+        log_autovacuum_min_duration: 5s
+        log_checkpoints: 'on'
+        log_connections: 'on'
+        log_directory: ../pg_log
+        log_disconnections: 'off'
+        log_file_mode: '0644'
+        log_line_prefix: '%m [%p] %q%a %u@%d %r '
+        log_lock_waits: 'on'
+        log_min_duration_sample: 500ms
+        log_rotation_age: 1d
+        log_rotation_size: 512MB
+        log_statement: ddl
+        log_statement_sample_rate: '0.05'
+        logging_collector: 'on'
+        max_parallel_workers: '8'
+        max_wal_size: 8GB
+        password_encryption: scram-sha-256
+        pg_stat_statements.max: '10000'
+        pg_stat_statements.track: all
+        pg_stat_statements.track_utility: 'off'
+        random_page_cost: '1.1'
+        seq_page_cost: '1.0'
+        statement_timeout: 5s
+        tcp_keepalives_idle: '900'
+        tcp_keepalives_interval: '100'
+        track_activities: 'on'
+        track_activity_query_size: '4096'
+        track_functions: all
+        track_io_timing: 'on'
+        wal_buffers: 64MB
+        wal_compression: 'on'
+      # recovery_conf:
+      #   restore_command: cp ../wal_archive/%f %p
 
   # some desired options for 'initdb'
   initdb:  # Note: It needs to be a list (some options need values, others are switches)
   - encoding: UTF8
   - data-checksums
+  - encoding: UTF8
+  - locale: en_US.UTF-8
+  - wal-segsize: '64'
+  post_init: /scripts/post_init.sh "dre"
 
   # Some additional users users which needs to be created after initializing new cluster
   users:
