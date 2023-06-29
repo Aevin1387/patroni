@@ -730,26 +730,6 @@ class Postgresql(object):
             logger.info("Debug: _do_stop Run on_safepoint")
             on_safepoint()
 
-        if on_shutdown and mode in ('fast', 'smart'):
-            i = 0
-            # Wait for pg_controldata `Database cluster state:` to change to "shut down"
-            while postmaster.is_running():
-                data = self.controldata()
-                if data.get('Database cluster state', '') == 'shut down':
-                    logger.info("Debug: _do_stop database cluster state shutdown, run on_shutdown with latest checkpoint location")
-                    on_shutdown(self.latest_checkpoint_location())
-                    break
-                elif data.get('Database cluster state', '').startswith('shut down'):  # shut down in recovery
-                    logger.info("Debug: _do_stop postmaster running shutdown in recovery")
-                    break
-                elif stop_timeout and i >= stop_timeout:
-                    logger.info("Debug: _do_stop stop_timeout reached, setting stop_timeout to 0 and break loop")
-                    stop_timeout = 0
-                    break
-                logger.info("Debug: _do_stop sleep (%s)", STOP_POLLING_INTERVAL)
-                time.sleep(STOP_POLLING_INTERVAL)
-                i += STOP_POLLING_INTERVAL
-
         try:
             logger.info("Debug: _do_stop postmaster wait timeout (%s)", stop_timeout)
             postmaster.wait(timeout=stop_timeout)
