@@ -1,0 +1,35 @@
+apiVersion: chaos.datadoghq.com/v1beta1
+kind: Disruption
+metadata:
+  creationTimestamp: null
+  name: time-disruption
+  namespace: chaos-engineering
+  annotations:
+    chaos.datadoghq.com/environment: "lima"
+spec:
+  count: 100%
+  level: pod
+  network:
+    delay: 1000
+    delayJitter: 50
+    services:
+    - name: zk-cs
+      namespace: chaos-demo
+    - name: zk-hs
+      namespace: chaos-demo
+  pulse:
+    activeDuration: 30s
+    dormantDuration: 1m0s
+    initialDelay: 500ms
+  selector:
+    app: zk
+  triggers:
+    createPods:
+      notBefore: null
+    inject:
+      notBefore: null
+status:
+  desiredTargetsCount: 0
+  ignoredTargetsCount: 0
+  injectedTargetsCount: 0
+  selectedTargetsCount: 0

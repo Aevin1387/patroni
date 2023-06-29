@@ -6,6 +6,7 @@ metadata:
   labels:
     application: patroni
     cluster-name: patronidemo
+  namespace: chaos-demo
 spec:
   clusterIP: None
 
@@ -17,6 +18,7 @@ metadata:
   labels:
     application: patroni
     cluster-name: *cluster_name
+  namespace: chaos-demo
 spec:
   replicas: 3
   serviceName: *cluster_name
@@ -62,12 +64,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: PATRONI_KUBERNETES_BYPASS_API_SERVICE
-          value: 'true'
-        - name: PATRONI_KUBERNETES_USE_ENDPOINTS
-          value: 'true'
         - name: PATRONI_KUBERNETES_LABELS
           value: '{application: patroni, cluster-name: patronidemo}'
+        - name: PATRONI_ZOOKEEPER_HOSTS
+          value: "zk-cs:2181"
         - name: PATRONI_SUPERUSER_USERNAME
           value: postgres
         - name: PATRONI_SUPERUSER_PASSWORD
@@ -123,6 +123,7 @@ metadata:
   labels:
     application: patroni
     cluster-name: *cluster_name
+  namespace: chaos-demo
 subsets: []
 
 ---
@@ -133,6 +134,7 @@ metadata:
   labels:
     application: patroni
     cluster-name: *cluster_name
+  namespace: chaos-demo
 spec:
   type: ClusterIP
   ports:
@@ -148,6 +150,7 @@ metadata:
     application: patroni
     cluster-name:  &cluster_name patronidemo
     role: replica
+  namespace: chaos-demo
 spec:
   type: ClusterIP
   selector:
@@ -166,6 +169,7 @@ metadata:
   labels:
     application: patroni
     cluster-name: *cluster_name
+  namespace: chaos-demo
 type: Opaque
 data:
   superuser-password: emFsYW5kbw==
@@ -182,6 +186,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: patronidemo
+  namespace: chaos-demo
 rules:
 - apiGroups:
   - ""
