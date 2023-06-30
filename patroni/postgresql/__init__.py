@@ -1034,7 +1034,7 @@ class Postgresql(object):
             checkpoint_lsn = parse_lsn(checkpoint_lsn)
             logger.info("Debug: post-parse LSN (%s)", checkpoint_lsn)
         except Exception as e:
-            logger.log("Debug: promote LSN check Exception {}".format(e))
+            logger.info("Debug: promote LSN check Exception {}".format(e))
 
         self.slots_handler.on_promote()
         self.citus_handler.schedule_cache_rebuild()
