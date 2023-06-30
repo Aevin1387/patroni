@@ -1027,6 +1027,15 @@ class Postgresql(object):
         if before_promote is not None:
             before_promote()
 
+        logger.info("Debug: Running promote")
+        try:
+            checkpoint_lsn = self.latest_checkpoint_location()
+            logger.info("Debug: pre-parse LSN (%s)", checkpoint_lsn)
+            checkpoint_lsn = parse_lsn(checkpoint_lsn)
+            logger.info("Debug: post-parse LSN (%s)", checkpoint_lsn)
+        except Exception as e:
+            logger.log("Debug: promote LSN check Exception {}".format(e))
+
         self.slots_handler.on_promote()
         self.citus_handler.schedule_cache_rebuild()
 
