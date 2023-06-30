@@ -477,6 +477,23 @@ class Postgresql(object):
             if isinstance(checkpoint_lsn, int):
                 return checkpoint_lsn
 
+
+    def pre_promote_checkpoint_location(self):
+        """Returns checkpoint location for the about to promote replica."""
+
+        data = self.controldata()
+        timeline = data.get("Latest checkpoint's TimeLineID")
+        lsn = checkpoint_lsn = data.get('Latest checkpoint location')
+        if lsn and timeline:
+            try:
+                logger.info("Debug: pre-promote pre-parse LSN (%s)", checkpoint_lsn)
+                checkpoint_lsn = parse_lsn(checkpoint_lsn)
+                logger.info("Debug: pre-promote post-parse LSN (%s)", checkpoint_lsn)
+            except Exception as e:
+                logger.error('Exception when parsing WAL pg_%sdump output: %r', self.wal_name, e)
+            if isinstance(checkpoint_lsn, int):
+                return checkpoint_lsn
+
     def is_running(self):
         """Returns PostmasterProcess if one is running on the data directory or None. If most recently seen process
         is running updates the cached process based on pid file."""
@@ -1029,10 +1046,7 @@ class Postgresql(object):
 
         logger.info("Debug: Running promote")
         try:
-            checkpoint_lsn = self.latest_checkpoint_location()
-            logger.info("Debug: pre-parse LSN (%s)", checkpoint_lsn)
-            checkpoint_lsn = parse_lsn(checkpoint_lsn)
-            logger.info("Debug: post-parse LSN (%s)", checkpoint_lsn)
+            self.pre_promote_checkpoint_location()
         except Exception as e:
             logger.info("Debug: promote LSN check Exception {}".format(e))
 
