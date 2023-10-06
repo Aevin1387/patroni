@@ -267,6 +267,7 @@ class Ha(object):
 
     def _failsafe_config(self) -> Optional[Dict[str, str]]:
         if self.is_failsafe_mode():
+            logger.info('DD_DEBUG: _failsafe_config members: %s', self.cluster.members)
             ret = {m.name: m.api_url for m in self.cluster.members if m.api_url}
             if self.state_handler.name not in ret:
                 ret[self.state_handler.name] = self.patroni.api.connection_string
