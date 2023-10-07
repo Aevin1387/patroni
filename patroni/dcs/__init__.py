@@ -334,6 +334,13 @@ class Member(Tags, NamedTuple('Member',
         return self.state == 'running'
 
     @property
+    def failover(self) -> bool:
+        """``True`` if the ``tags`` value from :attr"`~Member.data` does not contain ``nofailover`` or if ``nofailover`` is False. """
+        if 'nofailover' in self.tags:
+            return not self.tags['nofailover']
+        return True
+
+    @property
     def patroni_version(self) -> Optional[Tuple[int, ...]]:
         """The ``version`` string value from :attr:`~Member.data` converted to tuple.
 
